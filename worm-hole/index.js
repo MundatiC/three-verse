@@ -40,6 +40,7 @@ camera.add(listener);
 mp3s.forEach((name) => {
     const sound = new THREE.Audio(listener);
     sound.name = name;
+    sound.setVolume(0.2);
     if (name === "blarmp") {
         fitzSound = sound;
     }
