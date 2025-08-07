@@ -38,6 +38,7 @@ document.getElementById('back-from-settings').addEventListener('click', hideSett
 document.getElementById('save-settings').addEventListener('click', saveSettings);
 document.getElementById('resume-game').addEventListener('click', resumeGame);
 document.getElementById('quit-to-menu').addEventListener('click', quitToMenu);
+document.getElementById('settings-from-pause').addEventListener('click', showSettingsFromPause);
 
 // Load saved settings
 function loadSettings() {
@@ -65,7 +66,30 @@ function saveSettings() {
         startingAmmo: gameState.startingAmmo
     }));
 
+    // Update sound volumes if game is running
+    if (fitzSound) fitzSound.setVolume(gameState.volume);
+    if (laserSound) laserSound.setVolume(gameState.volume);
+
     hideSettings();
+}
+
+function showSettingsFromPause() {
+    pauseMenu.style.display = 'none';
+    settingsMenu.style.display = 'block';
+    // Store that we came from pause menu
+    settingsMenu.dataset.fromPause = 'true';
+}
+
+function hideSettings() {
+    settingsMenu.style.display = 'none';
+    // If we came from pause menu, return to pause menu
+    if (settingsMenu.dataset.fromPause === 'true') {
+        pauseMenu.style.display = 'flex';
+        delete settingsMenu.dataset.fromPause;
+    } else {
+        // Otherwise return to landing page
+        landingPage.style.display = 'flex';
+    }
 }
 
 function showInstructions() {
@@ -81,11 +105,6 @@ function hideInstructions() {
 function showSettings() {
     landingPage.style.display = 'none';
     settingsMenu.style.display = 'block';
-}
-
-function hideSettings() {
-    settingsMenu.style.display = 'none';
-    landingPage.style.display = 'flex';
 }
 
 function startGame() {
