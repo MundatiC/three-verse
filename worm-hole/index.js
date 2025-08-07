@@ -212,7 +212,7 @@ function getLaserBolt() {
 }
 
 function updateCamera(t) {
-    const time = t * 0.05;
+    const time = t * 0.06;
     const looptime = 10 * 1000;
     const p = (time % looptime) / looptime;
     const pos = tubeGeo.parameters.path.getPointAt(p);
