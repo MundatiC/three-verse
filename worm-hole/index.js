@@ -79,7 +79,7 @@ const boxGroup = new THREE.Group();
 scene.add(boxGroup);
 
 const numBoxes = 55;
-const size = 0.15;
+const size = 0.10;
 const boxGeo = new THREE.BoxGeometry(size, size, size);
 for (let i = 0; i < numBoxes; i += 1) {
     const p = (i / numBoxes + Math.random() * 0.1) % 1;
