@@ -1,25 +1,218 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Battle Galactica</title>
     <style>
-      body {
-        margin: 0;
-        cursor: crosshair;
-      }
-    </style>
-    <script type="importmap">
-      {
-				"imports": {
-					"three": "https://cdn.jsdelivr.net/npm/three@0.161/build/three.module.js",
-          "jsm/": "https://cdn.jsdelivr.net/npm/three@0.161/examples/jsm/"
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: 'Arial', sans-serif;
+            background-color: #000;
+            color: #00ccff;
         }
-			}
+        
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #landing-page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.8);
+            z-index: 100;
+        }
+        
+        #game-canvas {
+            display: none;
+        }
+        
+        #pause-menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: 50;
+        }
+        
+        .menu-container {
+            background-color: rgba(0, 20, 40, 0.9);
+            border: 2px solid #00ccff;
+            border-radius: 10px;
+            padding: 20px;
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-shadow: 0 0 10px #00ccff;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #00ffff;
+        }
+        
+        button {
+            background-color: #003366;
+            color: #00ccff;
+            border: 1px solid #00ccff;
+            border-radius: 5px;
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background-color: #00ccff;
+            color: #000;
+            box-shadow: 0 0 10px #00ccff;
+        }
+        
+        .settings-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+        }
+        
+        label {
+            margin-right: 10px;
+        }
+        
+        input[type="range"] {
+            width: 200px;
+        }
+        
+        .instructions {
+            text-align: left;
+            margin: 20px 0;
+            line-height: 1.5;
+        }
+        
+        .stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 1.2rem;
+            z-index: 10;
+        }
+        
+        #ammo-count {
+            color: #ffcc00;
+        }
+        
+        #score {
+            color: #00ff00;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="landing-page">
+            <div class="menu-container">
+                <h1>BATTLE GALACTICA</h1>
+                <div class="instructions">
+                    <p>Navigate through the cosmic tunnel and destroy enemy targets!</p>
+                    <p>Use your mouse to aim and click to fire your limited laser ammo.</p>
+                    <p>Destroy targets to earn points and replenish ammo.</p>
+                </div>
+                <button id="start-game">START MISSION</button>
+                <button id="instructions-btn">INSTRUCTIONS</button>
+                <button id="settings-btn">SETTINGS</button>
+            </div>
+        </div>
+        
+        <div id="instructions-menu" class="menu-container" style="display: none;">
+            <h2>MISSION BRIEFING</h2>
+            <div class="instructions">
+                <h3>OBJECTIVE:</h3>
+                <p>Destroy as many enemy targets as possible while navigating through the cosmic tunnel.</p>
+                
+                <h3>CONTROLS:</h3>
+                <ul>
+                    <li>Move your mouse to aim the crosshair</li>
+                    <li>Left click to fire your laser</li>
+                    <li>ESC key to pause the game</li>
+                </ul>
+                
+                <h3>GAME MECHANICS:</h3>
+                <ul>
+                    <li>You start with limited ammo (10 shots)</li>
+                    <li>Each destroyed target gives you +1 ammo</li>
+                    <li>Each hit scores 100 points</li>
+                    <li>Missed shots don't replenish ammo</li>
+                    <li>Game speed increases as you progress</li>
+                </ul>
+            </div>
+            <button id="back-from-instructions">BACK</button>
+        </div>
+        
+        <div id="settings-menu" class="menu-container" style="display: none;">
+            <h2>MISSION SETTINGS</h2>
+            <div class="settings-row">
+                <label for="volume-control">Sound Volume:</label>
+                <input type="range" id="volume-control" min="0" max="1" step="0.1" value="0.5">
+            </div>
+            <div class="settings-row">
+                <label for="difficulty-control">Difficulty:</label>
+                <input type="range" id="difficulty-control" min="0.5" max="2" step="0.1" value="1">
+            </div>
+            <div class="settings-row">
+                <label for="starting-ammo">Starting Ammo:</label>
+                <input type="range" id="starting-ammo" min="5" max="20" step="1" value="10">
+            </div>
+            <button id="save-settings">SAVE SETTINGS</button>
+            <button id="back-from-settings">BACK</button>
+        </div>
+        
+        <div id="pause-menu">
+            <div class="menu-container">
+                <h1>MISSION PAUSED</h1>
+                <button id="resume-game">RESUME MISSION</button>
+                <button id="quit-to-menu">ABORT MISSION</button>
+            </div>
+        </div>
+        
+        <canvas id="game-canvas"></canvas>
+        
+        <div class="stats">
+            <div>AMMO: <span id="ammo-count">10</span></div>
+            <div>SCORE: <span id="score">0</span></div>
+        </div>
+    </div>
+    
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://cdn.jsdelivr.net/npm/three@0.161/build/three.module.js",
+                "jsm/": "https://cdn.jsdelivr.net/npm/three@0.161/examples/jsm/"
+            }
+        }
     </script>
-  </head>
-  <body>
     <script type="module" src="index.js"></script>
-  </body>
+</body>
 </html>
