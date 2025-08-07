@@ -12,7 +12,9 @@ let gameState = {
     score: 0,
     volume: 0.5,
     difficulty: 1,
-    startingAmmo: 10
+    startingAmmo: 10,
+    lastTime: 0,
+    pauseTime: 0
 };
 
 // DOM elements
@@ -87,26 +89,52 @@ function hideSettings() {
 }
 
 function startGame() {
+    // First completely clean up any existing game
+    quitToMenu();
+
+    // Reset game state
     loadSettings();
     gameState.ammo = gameState.startingAmmo;
     gameState.score = 0;
     gameState.isPaused = false;
+    gameState.lastTime = 0;
+    gameState.pauseTime = 0;
 
     updateUI();
     landingPage.style.display = 'none';
     gameCanvas.style.display = 'block';
+
+    // Initialize fresh game
     initGame();
 }
 
 function pauseGame() {
-    gameState.isPaused = true;
-    pauseMenu.style.display = 'flex';
+    if (!gameState.isPaused) {
+        gameState.isPaused = true;
+        gameState.pauseTime = performance.now();
+        pauseMenu.style.display = 'flex';
+    }
 }
 
 function resumeGame() {
-    gameState.isPaused = false;
-    pauseMenu.style.display = 'none';
+    if (gameState.isPaused) {
+        gameState.isPaused = false;
+        gameState.lastTime += performance.now() - gameState.pauseTime;
+        pauseMenu.style.display = 'none';
+    }
 }
+
+function handleKeyDown(e) {
+    if (e.key === 'Escape' || e.key === 'p' || e.key === 'P') {
+        if (gameState.isPaused) {
+            resumeGame();
+        } else {
+            pauseGame();
+        }
+        e.preventDefault();
+    }
+}
+
 
 function quitToMenu() {
     gameState.isPaused = false;
@@ -114,15 +142,62 @@ function quitToMenu() {
     gameCanvas.style.display = 'none';
     landingPage.style.display = 'flex';
 
-    // Clean up game resources
+    // Remove all event listeners
+    window.removeEventListener('click', fireLaser);
+    window.removeEventListener('mousemove', onMouseMove);
+    window.removeEventListener('resize', handleWindowResize);
+    window.removeEventListener('keydown', handleKeyDown);
+
+    // Clean up renderer and composer
+    if (composer) {
+        composer.dispose();
+        composer = null;
+    }
+
     if (renderer) {
         renderer.dispose();
+        renderer = null;
     }
+
+    // Clean up scene
     if (scene) {
         while (scene.children.length > 0) {
-            scene.remove(scene.children[0]);
+            const obj = scene.children[0];
+            if (obj.geometry) obj.geometry.dispose();
+            if (obj.material) {
+                if (Array.isArray(obj.material)) {
+                    obj.material.forEach(m => m.dispose());
+                } else {
+                    obj.material.dispose();
+                }
+            }
+            scene.remove(obj);
         }
+        scene = null;
     }
+
+    // Clean up audio
+    if (fitzSound) {
+        fitzSound.disconnect();
+        fitzSound = null;
+    }
+    if (laserSound) {
+        laserSound.disconnect();
+        laserSound = null;
+    }
+
+    // Reset all variables
+    camera = null;
+    crosshairs = null;
+    tubeGeo = null;
+    boxGroup = null;
+    lasers = [];
+    mousePos = new THREE.Vector2();
+    impactPos = new THREE.Vector3();
+    impactColor = new THREE.Color();
+    impactBox = null;
+    gameState.lastTime = 0;
+    gameState.pauseTime = 0;
 }
 
 function updateUI() {
@@ -131,7 +206,7 @@ function updateUI() {
 }
 
 // Game variables
-let w, h, scene, camera, renderer, composer, crosshairs, laserGeo, raycaster, direction,tubeHitArea;
+let w, h, scene, camera, renderer, composer, crosshairs, laserGeo, raycaster, direction, tubeHitArea, laserBolt;
 let tubeGeo, boxGroup, lasers = [];
 let fitzSound, laserSound;
 let mousePos = new THREE.Vector2();
@@ -279,20 +354,14 @@ function initGame() {
     window.addEventListener('click', fireLaser);
     window.addEventListener('mousemove', onMouseMove, false);
     window.addEventListener('resize', handleWindowResize, false);
-    window.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') {
-            if (gameState.isPaused) {
-                resumeGame();
-            } else {
-                pauseGame();
-            }
-        }
-    });
+    window.addEventListener('keydown', handleKeyDown);
 
     animate();
 }
 
 function getLaserBolt() {
+    if (!camera || !crosshairs) return null;
+
     const laserMat = new THREE.MeshBasicMaterial({
         color: 0xFFCC00,
         transparent: true,
@@ -368,44 +437,66 @@ function getLaserBolt() {
 }
 
 function fireLaser() {
-    if (gameState.isPaused || gameState.ammo <= 0) return;
+    if (gameState.isPaused || gameState.ammo <= 0 || !scene || !camera) return;
+
+    const laser = getLaserBolt();
+    if (!laser) return;
 
     gameState.ammo -= 1;
     updateUI();
 
-    const laser = getLaserBolt();
     lasers.push(laser);
     scene.add(laser);
-    laserSound.stop();
-    laserSound.setVolume(gameState.volume);
-    laserSound.play();
+    
+    if (laserSound) {
+        laserSound.stop();
+        laserSound.setVolume(gameState.volume);
+        laserSound.play();
+    }
 
     // Cleanup inactive lasers
-    let inactiveLasers = lasers.filter((l) => l.userData.active === false);
+    let inactiveLasers = lasers.filter((l) => !l.userData || !l.userData.active);
     scene.remove(...inactiveLasers);
-    lasers = lasers.filter((l) => l.userData.active === true);
+    lasers = lasers.filter((l) => l.userData && l.userData.active);
 }
 
 function updateCamera(t) {
-    if (gameState.isPaused) return;
+    if (!tubeGeo || !tubeGeo.parameters || !tubeGeo.parameters.path) return;
 
     const time = t * 0.06 * gameState.difficulty;
     const looptime = 10 * 1000;
     const p = (time % looptime) / looptime;
     const pos = tubeGeo.parameters.path.getPointAt(p);
     const lookAt = tubeGeo.parameters.path.getPointAt((p + 0.03) % 1);
-    camera.position.copy(pos);
-    camera.lookAt(lookAt);
+
+    if (camera && pos && lookAt) {
+        camera.position.copy(pos);
+        camera.lookAt(lookAt);
+    }
 }
 
 function animate(t = 0) {
     requestAnimationFrame(animate);
 
-    if (!gameState.isPaused) {
-        updateCamera(t);
-        crosshairs.position.set(mousePos.x, mousePos.y, -1);
-        lasers.forEach(l => l.userData.update());
+    if (!scene || !camera || !composer) return;
+
+    if (gameState.isPaused) {
+        composer.render(scene, camera);
+        return;
     }
+
+    const adjustedTime = t - (gameState.pauseTime - gameState.lastTime);
+    updateCamera(adjustedTime);
+
+    if (crosshairs) {
+        crosshairs.position.set(mousePos.x, mousePos.y, -1);
+    }
+
+    lasers.forEach(l => {
+        if (l.userData && l.userData.update) {
+            l.userData.update();
+        }
+    });
 
     composer.render(scene, camera);
 }
