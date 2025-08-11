@@ -16,6 +16,45 @@ export function getTransition({ renderer, sceneA, sceneB }) {
   const h = window.innerHeight;
   const camera = new THREE.OrthographicCamera(w / -2, w / 2, h / 2, h / -2, -10, 10);
 
+  // Add to Transition.js after creating the scene
+function createParticleTrail() {
+  const particleCount = 1000;
+  const particles = new THREE.BufferGeometry();
+  const positions = new Float32Array(particleCount * 3);
+  const colors = new Float32Array(particleCount * 3);
+  const sizes = new Float32Array(particleCount);
+  
+  for (let i = 0; i < particleCount; i++) {
+    positions[i * 3] = (Math.random() - 0.5) * window.innerWidth;
+    positions[i * 3 + 1] = (Math.random() - 0.5) * window.innerHeight;
+    positions[i * 3 + 2] = 0;
+    
+    colors[i * 3] = Math.random() * 0.5 + 0.5; // R
+    colors[i * 3 + 1] = Math.random() * 0.3; // G
+    colors[i * 3 + 2] = Math.random() * 0.5 + 0.5; // B
+    
+    sizes[i] = Math.random() * 10 + 5;
+  }
+  
+  particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  particles.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+  
+  const particleMaterial = new THREE.PointsMaterial({
+    size: 1,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.8,
+    blending: THREE.AdditiveBlending,
+    sizeAttenuation: false
+  });
+  
+  const particleSystem = new THREE.Points(particles, particleMaterial);
+  scene.add(particleSystem);
+  
+  return { particles, particleSystem };
+}
+  const { particles, particleSystem } = createParticleTrail();
   const textures = [];
   const loader = new THREE.TextureLoader();
 
@@ -91,6 +130,12 @@ export function getTransition({ renderer, sceneA, sceneB }) {
   let needsTextureChange = false;
 
   const render = (delta) => {
+      const positions = particles.attributes.position.array;
+  for (let i = 0; i < positions.length; i += 3) {
+    positions[i] += (Math.random() - 0.5) * 2;
+    positions[i + 1] += (Math.random() - 0.5) * 2;
+  }
+  particles.attributes.position.needsUpdate = true;
     // Transition animation
     if (transitionParams.animate) {
       TWEEN.update();
@@ -136,3 +181,4 @@ export function getTransition({ renderer, sceneA, sceneB }) {
   };
   return { render };
 }
+
