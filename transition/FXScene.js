@@ -64,6 +64,16 @@ export function getFXScene({ renderer, material, clearColor, needsAnimatedColor 
   scene.fog = new THREE.FogExp2(clearColor, 0.0002);
 
   scene.add(new THREE.HemisphereLight(0xffffff, 0x555555, 1.0));
+  const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+scene.add(ambientLight);
+
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(1, 1, 1).normalize();
+scene.add(directionalLight);
+
+const pointLight = new THREE.PointLight(0xff0000, 2, 1000);
+pointLight.position.set(0, 0, 500);
+scene.add(pointLight);
   const mesh = getMesh(material, needsAnimatedColor);
   scene.add(mesh);
 
@@ -75,7 +85,13 @@ export function getFXScene({ renderer, material, clearColor, needsAnimatedColor 
     mesh.rotation.y += delta * rotationSpeed.y;
     mesh.rotation.z += delta * rotationSpeed.z;
     if (needsAnimatedColor) {
-      material.color.setHSL(0.1 + 0.5 * Math.sin(0.0002 * Date.now()), 1, 0.5);
+       const time = Date.now() * 0.0002;
+    material.color.setHSL(0.1 + 0.5 * Math.sin(time), 1, 0.5);
+    
+    // Animate point light
+    pointLight.color.setHSL(Math.sin(time * 0.7) * 0.5 + 0.5, 1, 0.5);
+    pointLight.position.x = Math.sin(time * 0.3) * 1000;
+    pointLight.position.y = Math.cos(time * 0.2) * 1000;
     }
   }
 
